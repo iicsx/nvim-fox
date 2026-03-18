@@ -1,6 +1,6 @@
 local M = {}
 
-function M.open_floating_window(content, file_type)
+function M.open_floating_window(content, file_type, opts)
   local lines = type(content) == "string" and vim.split(content, "\n") or content
   if not lines or #lines == 0 then
     lines = { "" }
@@ -11,21 +11,18 @@ function M.open_floating_window(content, file_type)
     max_width = math.max(max_width, vim.fn.strdisplaywidth(l))
   end
 
-  local width = math.min(max_width, math.floor(vim.o.columns * 0.4))
-  local height = math.min(#lines, math.floor(vim.o.lines * 0.3))
-
-  vim.notify(height)
-  vim.notify(#lines)
+  local width = opts.max_width or math.min(max_width, math.floor(vim.o.columns * 0.4))
+  local height = math.min(#lines, opts.max_height or #lines)
 
   local win_config = {
     relative = "editor",
-    row = 1,
-    col = vim.o.columns - width - 2, -- top right
+    row = opts.padding_top or 1,
+    col = vim.o.columns - width - (opts.padding_right or 2),
     width = width,
-    height = #lines,
+    height = height,
     style = "minimal",
-    title = " Floating Context ",
-    border = "rounded",
+    title = opts.title or " Floating Context ",
+    border = opts.border or "rounded",
   }
 
   local buf = vim.api.nvim_create_buf(false, true)
@@ -42,7 +39,36 @@ function M.open_floating_window(content, file_type)
   vim.api.nvim_buf_set_option(buf, "wrap", true)
   vim.api.nvim_buf_set_option(buf, "linebreak", true)
 
-  local win = vim.api.nvim_open_win(buf, true, win_config)
+  local win = vim.api.nvim_open_win(buf, false, win_config)
+
+  return buf, win, win_config
+end
+
+function M.show_windows_for_buf(buf, windows)
+  local entries = windows[buf]
+  if not entries then return end
+
+  for _, entry in ipairs(entries) do
+    if entry.buf then
+      if entry.win and vim.api.nvim_win_is_valid(entry.win) then
+        vim.api.nvim_win_close(entry.win, true)
+      end
+
+      entry.win = vim.api.nvim_open_win(buf, false, entry.config or {})
+    end
+  end
+end
+
+function M.hide_windows_for_buf(buf, windows)
+  local entries = windows[buf]
+  if not entries then return end
+
+  for _, entry in ipairs(entries) do
+    if entry.win and vim.api.nvim_win_is_valid(entry.win) and entry.sticky then
+      vim.api.nvim_win_close(entry.win, true)
+      entry.win = nil
+    end
+  end
 end
 
 return M
