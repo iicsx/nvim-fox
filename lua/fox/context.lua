@@ -15,8 +15,6 @@ local function normalize_indentation(lines)
     end
   end
 
-  vim.notify(min_indent)
-
   if not min_indent or min_indent == 0 then
     return lines
   end
