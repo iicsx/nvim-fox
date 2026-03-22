@@ -1,6 +1,35 @@
 local window = require("utils.window")
 local tables = require("utils.tables")
 
+local function normalize_indentation(lines)
+  local min_indent = nil
+
+  for _, line in ipairs(lines) do
+    if line:match("%S") then
+      local indent = line:match("^%s*") or ""
+      local len = #indent
+
+      if not min_indent or len < min_indent then
+        min_indent = len
+      end
+    end
+  end
+
+  vim.notify(min_indent)
+
+  if not min_indent or min_indent == 0 then
+    return lines
+  end
+
+  local out = {}
+
+  for i, line in ipairs(lines) do
+    out[i] = line:sub(min_indent)
+  end
+
+  return out
+end
+
 local M = {}
 
 M.windows = {}
@@ -17,6 +46,8 @@ function M.context(opts)
   local lines = vim.api.nvim_buf_get_lines(0, start_line, end_line, false)
   if #lines == 0 then return end
 
+  lines = normalize_indentation(lines)
+
   local start_col = start_pos[3]
   local end_col = end_pos[3]
 
@@ -30,11 +61,12 @@ function M.context(opts)
   local file_type = vim.bo.filetype
 
   local floating_buffer, floating_window, config = window.open_floating_window(lines, file_type, opts)
-  -- M.save_window(parent_buf, floating_buffer, floating_window, config)
   M.current_context = {
     win = floating_window,
     buf = floating_buffer,
     config = config,
+    content = lines,
+    file_type = file_type,
     sticky = true
   }
 end
@@ -52,6 +84,8 @@ function M.toggle_sticky(opts)
 
     if M.current_context.win and vim.api.nvim_win_is_valid(M.current_context.win) then
       vim.api.nvim_win_set_config(M.current_context.win, M.current_context.config)
+      vim.api.nvim_buf_set_lines(M.current_context.buf, 0, -1, false, M.current_context.content)
+      vim.api.nvim_buf_set_option(M.current_context.buf, "filetype", M.current_context.file_type)
     end
 
     table.insert(M.windows[current_buf], M.current_context)
@@ -66,6 +100,8 @@ function M.toggle_sticky(opts)
 
     if buf.win and vim.api.nvim_win_is_valid(buf.win) then
       vim.api.nvim_win_set_config(buf.win, buf.config)
+      vim.api.nvim_buf_set_lines(buf.buf, 0, -1, false, buf.content)
+      vim.api.nvim_buf_set_option(buf.buf, "filetype", buf.file_type)
     end
 
     M.current_context = buf

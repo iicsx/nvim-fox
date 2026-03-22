@@ -54,7 +54,12 @@ function M.show_windows_for_buf(buf, windows)
         vim.api.nvim_win_close(entry.win, true)
       end
 
-      entry.win = vim.api.nvim_open_win(buf, false, entry.config or {})
+      local new_buf = vim.api.nvim_create_buf(false, true)
+
+      entry.win = vim.api.nvim_open_win(new_buf, false, entry.config or {})
+
+      vim.api.nvim_buf_set_lines(new_buf, 0, -1, false, entry.content)
+      vim.api.nvim_buf_set_option(new_buf, "filetype", entry.file_type)
     end
   end
 end
