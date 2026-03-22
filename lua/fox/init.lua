@@ -14,7 +14,10 @@ function M.setup(opts)
     if opt.enable ~= false then
       if table == "default" then goto continue end
 
-      modules[table].setup(opts)
+      local field = modules[table]
+      if field then
+        field.setup(opts)
+      end
 
       ::continue::
     end
